@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import hbs from "htmlbars-inline-precompile";
+import { assert } from '@ember/debug';
 
 export default Component.extend({
   layout: hbs`{{yield}}`,
@@ -11,11 +12,10 @@ export default Component.extend({
   flags: undefined,
 
   // function that is passed the Elm module's ports
-  // eslint-disable-next-line
-  setup(ports) {},
+  setup: undefined,
 
   didReceiveAttrs() {
-    if (!this.src) throw new Error("elm-component missing src object");
+    assert('[elm-component]: src attribute is required', this.src);
   },
 
   didInsertElement() {
@@ -23,6 +23,8 @@ export default Component.extend({
       node: this.element,
       flags: this.flags
     });
-    this.setup(ports);
+    if (this.setup) {
+      this.setup(ports);
+    }
   }
 });

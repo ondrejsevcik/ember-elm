@@ -21,16 +21,25 @@ main =
 --
 
 
+type Username
+    = Username String
+
+
 type alias Model =
-    { server : String
-    , input : String
-    , messages : List String
+    { input : String
+    , jsUsername : Username
+    , messages : List ( Username, String )
     }
 
 
 init : String -> ( Model, Cmd Msg )
-init server =
-    ( Model server "" [], Cmd.none )
+init jsUsername =
+    ( { input = ""
+      , jsUsername = Username jsUsername
+      , messages = []
+      }
+    , Cmd.none
+    )
 
 
 
@@ -42,24 +51,29 @@ init server =
 type Msg
     = Input String
     | Send
-    | NewEmoji String
-    | NewMessage String
+    | NewJsMessage String
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
-update msg ({ server, input, messages } as model) =
+update msg model =
     case msg of
-        Input newInput ->
-            ( { model | input = newInput }, Cmd.none )
+        Input text ->
+            ( { model | input = text }, Cmd.none )
 
         Send ->
-            ( { model | input = "" }, Cmd.none )
+            ( { model
+                | input = ""
+                , messages = List.append model.messages [ ( Username "Elm says", model.input ) ]
+              }
+            , Cmd.none
+            )
 
-        NewEmoji newEmoji ->
-            ( { model | input = input ++ newEmoji }, Cmd.none )
-
-        NewMessage newMessage ->
-            ( { model | messages = newMessage :: messages }, Cmd.none )
+        NewJsMessage text ->
+            ( { model
+                | messages = List.append model.messages [ ( model.jsUsername, text ) ]
+              }
+            , Cmd.none
+            )
 
 
 
@@ -68,16 +82,15 @@ update msg ({ server, input, messages } as model) =
 --
 
 
-port emoji : (String -> msg) -> Sub msg
+port sendToElm : (String -> msg) -> Sub msg
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    sendToElm NewJsMessage
 
 
 
--- Sub.batch [ WS.listen server NewMessage, emoji NewEmoji ]
 --
 -- View.
 --
@@ -86,12 +99,40 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     div [ class "chat-container" ]
-        [ input [ class "chat-message-input", onInput Input, value model.input ] []
-        , button [ onClick Send ] [ text "Send" ]
-        , div [ class "chat-messages" ] (List.map viewMessage (List.reverse model.messages))
+        [ input
+            [ class "elm-input"
+            , attribute "data-test-elm-input" "true"
+            , onInput Input
+            , placeholder "Or from Elm"
+            , value model.input
+            ]
+            []
+        , button
+            [ onClick Send
+            , class "elm-send-btn"
+            , attribute "data-test-elm-send-btn" "true"
+            ]
+            [ text "Send" ]
+        , h2 [] [ Html.text "Messages" ]
+        , div
+            [ class "chat-messages" ]
+            (case model.messages of
+                [] ->
+                    [ div
+                        [ class "chat-message" ]
+                        [ Html.text "no messages yet" ]
+                    ]
+
+                messages ->
+                    List.indexedMap viewMessage messages
+            )
         ]
 
 
-viewMessage : String -> Html msg
-viewMessage msg =
-    div [] [ text msg ]
+viewMessage : Int -> ( Username, String ) -> Html msg
+viewMessage index ( Username user, msg ) =
+    div
+        [ attribute "data-test-chat-message" (String.fromInt index)
+        , class "chat-message"
+        ]
+        [ text (user ++ ": " ++ msg) ]

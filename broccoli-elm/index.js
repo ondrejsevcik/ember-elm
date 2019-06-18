@@ -63,9 +63,11 @@ module.exports = class ElmCompiler extends CachingWriter {
             ${jsStr}
           }).call(elmScope)
           export default elmScope.Elm;
+          // define('${this.destDir}/elm-modules', ['exports'], function (exports) {
+          //   exports['default'] = elmScope.Elm;
+          // });
           `;
 
-        // build
         const dir = path.join(this.outputPath, this.destDir);
         mkdirp.sync(dir);
         fs.writeFileSync(path.join(dir, "elm-modules.js"), jsStr);
